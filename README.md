@@ -1,8 +1,8 @@
 # Práctica de PostgreSQL — Base de datos `biblioteca`
 
-**Asignatura:** `<ASIGNATURA>`
+**Asignatura:** `Administracion y Diseño de BAse de Datos`
 
-**Integrantes:** `<NOMBRE 1>`, `<NOMBRE 2>`
+**Autor:** `Francisco Javier Cañas González`
 
 ## Entorno de ejecución
 
@@ -91,7 +91,7 @@ fichero de este repositorio: durante el trabajo se mantuvo únicamente en una
 variable de entorno de la sesión local.
 
 ```bash
-ssh usuario@<IP-DE-LA-VM>
+ssh usuario@10.6.130.123
 ```
 
 ### 0.1 Comprobación de la versión de PostgreSQL instalada
@@ -101,23 +101,14 @@ ssh usuario@<IP-DE-LA-VM>
 **Comando**
 
 ```bash
-dpkg -l | grep -E "^ii\s+postgresql"
 psql --version
 ```
 
 **Salida**
 
 ```
-ii  postgresql                            16+257build1.1                          all          object-relational SQL database (supported version)
-ii  postgresql-16                         16.15-0ubuntu0.24.04.1                  amd64        The World's Most Advanced Open Source Relational Database
-ii  postgresql-client-16                  16.15-0ubuntu0.24.04.1                  amd64        front-end programs for PostgreSQL 16
-ii  postgresql-client-common              257build1.1                             all          manager for multiple PostgreSQL client versions
-ii  postgresql-common                     257build1.1                             all          PostgreSQL database-cluster manager
-
 psql (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 ```
-
-**Explicación.** La VM ya traía **PostgreSQL 16.15**, que es ≥ 13, por lo que **no fue necesario instalar nada**. Si no hubiera estado instalado, el comando a usar habría sido `sudo apt update && sudo apt install -y postgresql postgresql-contrib`.
 
 ### 0.2 Estado del servicio
 
