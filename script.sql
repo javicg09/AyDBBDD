@@ -3,12 +3,6 @@
 --  Script completo con todos los comandos SQL en orden, por apartado.
 --
 --  La practica se ejecuto sobre PostgreSQL 16.15 en Ubuntu 24.04.3 LTS.
---
---  NOTA SOBRE EL USUARIO QUE EJECUTA CADA BLOQUE:
---    - Los apartados 1, 2.1-2.5 se ejecutan como superusuario  : postgres
---    - Los apartados 3 a 10 se ejecutan como propietario de la BD: admin_biblio
---    - Los bloques de demostracion de permisos se ejecutan como : usuario_biblio
---  Cada bloque indica con un comentario el usuario con el que se conecto.
 -- =====================================================================
 
 
