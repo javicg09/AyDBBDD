@@ -186,40 +186,6 @@ SELECT * FROM bonificacion ORDER BY id_cliente, anio, mes;
 (6 rows)
 ```
 
-## Inserciones que deben fallar
-
-```text
-DO $$ BEGIN
-    INSERT INTO stock VALUES (1, 1, 3, -5);
-EXCEPTION WHEN check_violation THEN RAISE NOTICE 'OK rechazado (stock negativo): %', SQLERRM; END $$;
-NOTICE:  OK rechazado (stock negativo): new row for relation "stock" violates check constraint "stock_cantidad_check"
-DO $$ BEGIN
-    INSERT INTO producto (nombre, tipo, precio) VALUES ('Pala', 'Herramienta', 10);
-EXCEPTION WHEN check_violation THEN RAISE NOTICE 'OK rechazado (tipo inválido): %', SQLERRM; END $$;
-NOTICE:  OK rechazado (tipo inválido): new row for relation "producto" violates check constraint "producto_tipo_check"
-DO $$ BEGIN
-    -- Luis trabaja en el vivero 2 desde 2025-03 (sin fin): no puede estar a la vez en el 1
-    INSERT INTO desempeno VALUES (2, 1, 1, 1, '2025-05-01', NULL, NULL);
-EXCEPTION WHEN exclusion_violation THEN RAISE NOTICE 'OK rechazado (dos viveros a la vez): %', SQLERRM; END $$;
-NOTICE:  OK rechazado (dos viveros a la vez): conflicting key value violates exclusion constraint "desempeno_id_empleado_id_vivero_daterange_excl"
-DO $$ BEGIN
-    INSERT INTO desempeno VALUES (4, 2, 5, 1, '2026-02-01', NULL, NULL);
-EXCEPTION WHEN foreign_key_violation THEN RAISE NOTICE 'OK rechazado (zona inexistente): %', SQLERRM; END $$;
-NOTICE:  OK rechazado (zona inexistente): insert or update on table "desempeno" violates foreign key constraint "desempeno_id_vivero_id_zona_fkey"
-DO $$ BEGIN
-    INSERT INTO pedido (id_cliente, id_empleado, fecha) VALUES (5, 1, '2025-01-01');
-EXCEPTION WHEN raise_exception THEN RAISE NOTICE 'OK rechazado (pedido anterior al ingreso): %', SQLERRM; END $$;
-NOTICE:  OK rechazado (pedido anterior al ingreso): El pedido (2025-01-01) es anterior al ingreso del cliente 5 en Tajinaste Plus
-DO $$ BEGIN
-    INSERT INTO empleado (dni, nombre) VALUES ('1234', 'DNI mal');
-EXCEPTION WHEN check_violation THEN RAISE NOTICE 'OK rechazado (DNI inválido): %', SQLERRM; END $$;
-NOTICE:  OK rechazado (DNI inválido): new row for relation "empleado" violates check constraint "empleado_dni_check"
-DO $$ BEGIN
-    INSERT INTO zona VALUES (99, 1, 'Exterior', 28, -16);
-EXCEPTION WHEN foreign_key_violation THEN RAISE NOTICE 'OK rechazado (vivero inexistente): %', SQLERRM; END $$;
-NOTICE:  OK rechazado (vivero inexistente): insert or update on table "zona" violates foreign key constraint "zona_id_vivero_fkey"
-```
-
 ## D1: borrar una línea de pedido
 
 ```text
