@@ -14,8 +14,9 @@ La base de datos es `clientesdb` (tablas `clientes` y `pedidos`), desplegada con
 
 ### Paso 1. Despliegue y estado inicial
 
-Se levanta el servicio y se comprueba que está en ejecución. A continuación se consulta el número de filas de cada tabla y un **resumen MD5** del contenido. Este resumen es la clave de la verificación: si tras restaurar el MD5 coincide, los datos son idénticos fila a fila, no solo "parecidos".
+Se levanta el servicio y se consulta el número de filas y un **resumen MD5** del contenido de cada tabla. La última línea es la **consulta de verificación**: si tras restaurar el MD5 coincide, los datos son idénticos fila a fila, no solo "parecidos".
 
+::: paso
 ```bash
 docker compose up -d pgdb
 docker compose ps
@@ -23,80 +24,92 @@ docker compose exec pgdb psql -U admin -d clientesdb -c "\dt"
 docker compose exec pgdb psql -U admin -d clientesdb -c "SELECT 'clientes' AS tabla, count(*), md5(string_agg(c::text, ',' ORDER BY id)) FROM clientes c UNION ALL SELECT 'pedidos', count(*), md5(string_agg(p::text, ',' ORDER BY id)) FROM pedidos p;"
 ```
 
-![Despliegue del servicio y estado inicial de clientesdb](capturas/01_estado_inicial.png)
+![Figura 1. Despliegue del servicio y estado inicial de clientesdb](capturas/01_estado_inicial.png)
+:::
+
+**Resultado:** 3 clientes y 3 pedidos; estos MD5 son la referencia para el resto de pasos.
 
 ### Paso 2. Realización de la copia de seguridad
 
-Se generan dos copias con `pg_dump` para poder compararlas:
+Se generan dos copias con `pg_dump`, que toma una instantánea consistente (MVCC) sin bloquear a otros usuarios: una en **formato personalizado** (`-Fc`, comprimido, restaurable de forma selectiva con `pg_restore`) y otra en **SQL plano** (cargable con `psql`). `pg_restore -l` lista el **índice (TOC)** para comprobar la copia antes de necesitarla, y esta se lleva al anfitrión para que no viva solo en el contenedor.
 
-- **Formato personalizado (`-Fc`)**: binario, comprimido, y el único que permite una restauración selectiva con `pg_restore`.
-- **Formato SQL plano (por defecto)**: texto legible con las sentencias `CREATE TABLE` y `COPY`, que se restaura con `psql`.
-
+::: paso
 ```bash
 docker compose exec pgdb pg_dump -U admin -d clientesdb -Fc -f /tmp/clientesdb.dump
 docker compose exec pgdb pg_dump -U admin -d clientesdb -f /tmp/clientesdb.sql
 docker compose exec pgdb ls -lh /tmp/clientesdb.dump /tmp/clientesdb.sql
 docker compose exec pgdb pg_restore -l /tmp/clientesdb.dump
-```
-
-El último comando lista el **índice (TOC)** de la copia personalizada: tablas, secuencias, datos y restricciones que contiene. Es la prueba de que la copia es válida antes de necesitarla. `pg_dump` obtiene una instantánea consistente gracias a MVCC, sin bloquear a los usuarios que estén leyendo o escribiendo durante la copia.
-
-Además, se copia el fichero al equipo anfitrión, porque una copia que solo vive dentro del mismo contenedor que la base de datos no protege frente a un fallo de ese contenedor:
-
-```bash
 docker compose cp pgdb:/tmp/clientesdb.dump ./clientesdb.dump
 ```
 
-![Copia de seguridad en los dos formatos, tamaños y contenido del índice](capturas/02_backup.png)
+![Figura 2. Copia en los dos formatos, tamaños, índice de la copia y copia al anfitrión](capturas/02_backup.png)
+:::
+
+**Resultado:** copia personalizada de 5,0 KB y SQL de 3,6 KB; el índice contiene tablas, datos, secuencias y restricciones (incluida la clave foránea).
 
 ### Paso 3. Restauración en una base de datos nueva
 
-Es la forma más segura de comprobar una copia, porque no toca los datos originales. Se crea una base de datos vacía y se restaura en ella:
+Es la forma más segura de comprobar una copia, porque no toca los datos originales: se crea una base de datos vacía y se restaura en ella.
 
+::: paso
 ```bash
 docker compose exec pgdb createdb -U admin clientesdb_restaurada
 docker compose exec pgdb pg_restore -U admin -d clientesdb_restaurada /tmp/clientesdb.dump
-docker compose exec pgdb psql -U admin -d clientesdb_restaurada -c "SELECT 'clientes' AS tabla, count(*), md5(string_agg(c::text, ',' ORDER BY id)) FROM clientes c UNION ALL SELECT 'pedidos', count(*), md5(string_agg(p::text, ',' ORDER BY id)) FROM pedidos p;"
 ```
 
-El recuento y los MD5 coinciden con los del paso 1.
+A continuación se ejecuta la consulta de verificación del paso 1.
 
-![Restauración en clientesdb_restaurada y verificación](capturas/03_restore_nueva_bd.png)
+![Figura 3. Restauración en clientesdb_restaurada y verificación](capturas/03_restore_nueva_bd.png)
+:::
+
+**Resultado:** el recuento y los MD5 coinciden con los del paso 1.
 
 ### Paso 4. Desastre simulado y restauración sobrescribiendo
 
-Se simula un error humano grave: el borrado accidental de las tablas. Se comprueba que los datos han desaparecido y se recuperan desde la copia con `--clean --if-exists`, que elimina los objetos existentes antes de recrearlos (y no falla si ya no existen):
+Se simula el borrado accidental de las tablas, se comprueba que han desaparecido y se recuperan con `--clean --if-exists`, que elimina los objetos existentes antes de recrearlos (y no falla si ya no existen).
 
+::: paso
 ```bash
 docker compose exec pgdb psql -U admin -d clientesdb -c "DROP TABLE pedidos; DROP TABLE clientes;"
 docker compose exec pgdb psql -U admin -d clientesdb -c "\dt"
 docker compose exec pgdb pg_restore -U admin -d clientesdb --clean --if-exists /tmp/clientesdb.dump
-docker compose exec pgdb psql -U admin -d clientesdb -c "SELECT 'clientes' AS tabla, count(*), md5(string_agg(c::text, ',' ORDER BY id)) FROM clientes c UNION ALL SELECT 'pedidos', count(*), md5(string_agg(p::text, ',' ORDER BY id)) FROM pedidos p;"
 ```
 
-Los MD5 vuelven a coincidir con los del paso 1: la recuperación ha sido completa, incluyendo la clave foránea de `pedidos` hacia `clientes`.
+A continuación se ejecuta la consulta de verificación del paso 1.
 
-![Borrado accidental y recuperación con pg_restore --clean](capturas/04_desastre_restore.png)
+![Figura 4. Borrado accidental y recuperación con pg_restore --clean --if-exists](capturas/04_desastre_restore.png)
+:::
+
+**Resultado:** los MD5 vuelven a coincidir; la recuperación es completa, incluida la clave foránea de `pedidos` hacia `clientes`.
 
 ### Paso 5. Restauración de la copia SQL plana
 
-La copia en texto no se puede cargar con `pg_restore`, sino con `psql`. Se restaura en otra base de datos nueva:
+La copia en texto no se carga con `pg_restore`, sino con `psql`. Se restaura en otra base de datos nueva.
 
+::: paso
 ```bash
 docker compose exec pgdb createdb -U admin clientesdb_sql
 docker compose exec pgdb psql -U admin -d clientesdb_sql -f /tmp/clientesdb.sql
-docker compose exec pgdb psql -U admin -d clientesdb_sql -c "SELECT 'clientes' AS tabla, count(*), md5(string_agg(c::text, ',' ORDER BY id)) FROM clientes c UNION ALL SELECT 'pedidos', count(*), md5(string_agg(p::text, ',' ORDER BY id)) FROM pedidos p;"
 ```
 
-![Restauración de la copia SQL con psql](capturas/05_restore_sql.png)
+A continuación se ejecuta la consulta de verificación del paso 1.
 
-## 3. Equivalencia con pgAdmin y conclusiones
+![Figura 5. Restauración de la copia SQL con psql](capturas/05_restore_sql.png)
+:::
+
+**Resultado:** los MD5 coinciden también con la copia en SQL plano.
+
+## 3. Equivalencia con pgAdmin
+
+Table: Tabla 1. Equivalencia entre pgAdmin y la línea de comandos
 
 | Acción en pgAdmin | Herramienta equivalente | Uso |
 |---|---|---|
 | *Backup…* (formato Custom) | `pg_dump -Fc` | Copia comprimida y restaurable de forma selectiva |
 | *Backup…* (formato Plain) | `pg_dump` | Copia en texto SQL, cargable con `psql` |
 | *Restore…* | `pg_restore` | Restaura una copia Custom/Tar en una BD existente |
+
+Table: Tabla 2. Formato personalizado frente a SQL plano
 
 | | Formato personalizado (`-Fc`) | SQL plano |
 |---|---|---|
@@ -105,4 +118,22 @@ docker compose exec pgdb psql -U admin -d clientesdb_sql -c "SELECT 'clientes' A
 | Restauración selectiva y paralela | Sí | No |
 | Legible y editable a mano | No | Sí |
 
-**Conclusiones.** (1) Una copia solo sirve si se ha probado a restaurarla: por eso se verifica con MD5 en cada restauración y se ha comprobado el índice con `pg_restore -l`. (2) Restaurar primero en una base de datos nueva evita riesgos; `--clean --if-exists` es la opción cuando se quiere sobrescribir. (3) Estas son copias *lógicas*: recuperan el estado en el momento de la copia, pero no permiten volver a un instante intermedio. Para eso existen la copia física (`pg_basebackup`) y el archivado de WAL, que permiten la recuperación en un punto en el tiempo (PITR) y no se han utilizado en esta práctica. (4) Una copia almacenada en el mismo equipo que la base de datos no protege frente a la pérdida de ese equipo, por lo que se copió al anfitrión.
+## 4. Verificación y conclusiones
+
+Table: Tabla 3. Verificación de integridad
+
+| Paso | Base de datos | Filas (clientes/pedidos) | MD5 clientes | MD5 pedidos | ¿Coincide con el original? |
+|---|---|---|---|---|---|
+| 1 | `clientesdb` (original) | 3 / 3 | `6fa9339d…` | `0126617c…` | Referencia |
+| 3 | `clientesdb_restaurada` | 3 / 3 | `6fa9339d…` | `0126617c…` | Sí |
+| 4 | `clientesdb` (tras el borrado) | 3 / 3 | `6fa9339d…` | `0126617c…` | Sí |
+| 5 | `clientesdb_sql` | 3 / 3 | `6fa9339d…` | `0126617c…` | Sí |
+
+::: nota
+MD5 completos en las capturas.
+:::
+
+1. **Una copia solo sirve si se ha probado.** Cada restauración se verificó con el MD5 del contenido y la copia se inspeccionó antes con `pg_restore -l`.
+2. **Restaurar en una base de datos nueva es lo más seguro.** No toca los datos originales; `--clean --if-exists` es la opción para sobrescribir.
+3. **Son copias lógicas.** Recuperan el estado del momento de la copia, no un instante intermedio. Para eso existen la copia física (`pg_basebackup`) y el archivado de WAL (PITR), que no se han utilizado en esta práctica.
+4. **La copia debe estar fuera del servidor.** Una copia que solo vive dentro del contenedor no protege frente a su pérdida; por eso se copió al anfitrión.
