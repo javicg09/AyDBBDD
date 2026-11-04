@@ -1,0 +1,39 @@
+$ docker compose exec pgdb pg_dump -U admin -d clientesdb -Fc -f /tmp/clientesdb.dump
+$ docker compose exec pgdb pg_dump -U admin -d clientesdb -f /tmp/clientesdb.sql
+$ docker compose exec pgdb ls -lh /tmp/clientesdb.dump /tmp/clientesdb.sql
+-rw-r--r-- 1 root root 5.0K Nov  4 10:41 /tmp/clientesdb.dump
+-rw-r--r-- 1 root root 3.6K Nov  4 10:41 /tmp/clientesdb.sql
+$ docker compose exec pgdb pg_restore -l /tmp/clientesdb.dump
+;
+; Archive created at 2026-11-04 10:41:46 UTC
+;     dbname: clientesdb
+;     TOC Entries: 19
+;     Compression: gzip
+;     Dump Version: 1.15-0
+;     Format: CUSTOM
+;     Integer: 4 bytes
+;     Offset: 8 bytes
+;     Dumped from database version: 16.3 (Debian 16.3-1.pgdg120+1)
+;     Dumped by pg_dump version: 16.3 (Debian 16.3-1.pgdg120+1)
+;
+;
+; Selected TOC Entries:
+;
+216; 1259 16386 TABLE public clientes admin
+215; 1259 16385 SEQUENCE public clientes_id_seq admin
+3368; 0 0 SEQUENCE OWNED BY public clientes_id_seq admin
+218; 1259 16393 TABLE public pedidos admin
+217; 1259 16392 SEQUENCE public pedidos_id_seq admin
+3369; 0 0 SEQUENCE OWNED BY public pedidos_id_seq admin
+3208; 2604 16389 DEFAULT public clientes id admin
+3209; 2604 16396 DEFAULT public pedidos id admin
+3359; 0 16386 TABLE DATA public clientes admin
+3361; 0 16393 TABLE DATA public pedidos admin
+3370; 0 0 SEQUENCE SET public clientes_id_seq admin
+3371; 0 0 SEQUENCE SET public pedidos_id_seq admin
+3211; 2606 16391 CONSTRAINT public clientes clientes_pkey admin
+3213; 2606 16398 CONSTRAINT public pedidos pedidos_pkey admin
+3214; 2606 16399 FK CONSTRAINT public pedidos pedidos_cliente_id_fkey admin
+$ docker compose cp pgdb:/tmp/clientesdb.dump ./clientesdb.dump
+ src-pgdb-1 Copying src-pgdb-1:/tmp/clientesdb.dump to ./clientesdb.dump
+ src-pgdb-1 Copied src-pgdb-1:/tmp/clientesdb.dump to ./clientesdb.dump

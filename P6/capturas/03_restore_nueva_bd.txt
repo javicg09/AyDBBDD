@@ -1,0 +1,9 @@
+$ docker compose exec pgdb createdb -U admin clientesdb_restaurada
+$ docker compose exec pgdb pg_restore -U admin -d clientesdb_restaurada /tmp/clientesdb.dump
+$ docker compose exec pgdb psql -U admin -d clientesdb_restaurada -c "SELECT 'clientes' AS tabla, count(*), md5(string_agg(c::text, ',' ORDER BY id)) FROM clientes c UNION ALL SELECT 'pedidos', count(*), md5(string_agg(p::text, ',' ORDER BY id)) FROM pedidos p;"
+  tabla   | count |               md5                
+----------+-------+----------------------------------
+ clientes |     3 | 6fa9339d883070e9a704739cd835dcee
+ pedidos  |     3 | 0126617ce5584df79682981be43f6da7
+(2 rows)
+

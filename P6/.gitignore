@@ -1,0 +1,4 @@
+adbd/
+db_data/
+*.dump
+.DS_Store
