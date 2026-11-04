@@ -1,7 +1,7 @@
 ---
 title: "Copias de seguridad en PostgreSQL: realización y restauración"
 subtitle: "Administración y diseño de bases de datos · Grado en Ingeniería Informática · ULL"
-author: "Francisco Javier Cañas González y [NOMBRE DE LA PAREJA, si aplica]"
+author: "Francisco Javier Cañas González"
 ---
 
 ## 1. Objetivo y entorno
